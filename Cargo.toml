@@ -1,0 +1,14 @@
+[package]
+name = "polygon-triangulation"
+version = "0.1.0"
+edition = "2021"
+authors = [
+    "Suraaj K S <kssuraaj28@gmail.com>"
+]
+
+[[bin]]
+name = "polygon-triangulation"
+
+[dependencies]
+piston_window = "0.123.0"
+rand = "0.8.5"
