@@ -1,45 +1,38 @@
-use piston_window::*;
+use draw::Colors;
 use polygon::SimplePolygon;
-use types::Color;
+use std::sync::mpsc;
+use std::thread;
 
+mod dcel;
+mod draw;
 mod polygon;
+mod primitives;
 
 fn main() {
-    let p = SimplePolygon::gen_rand_hard(10, 1000, 100).unwrap();
+    let (tx, rx) = mpsc::channel();
+    thread::spawn(move || worker(tx));
+    draw::drawer(rx);
+}
 
-    let mut window: PistonWindow = WindowSettings::new("Polygon", [1000, 1000])
-        .exit_on_esc(true)
-        .build()
-        .unwrap();
-    let point_list = p.get_point_list();
-    while let Some(e) = window.next() {
-        let red: Color = [1., 0., 0., 1.];
-        window.draw_2d(&e, |c, g, _| {
-            clear([1.0; 4], g);
-            let points = point_list;
-            let mut prev = &points[0];
-            for pt in points[1..].iter() {
-                line(
-                    red,
-                    2.,
-                    [prev.x as f64, prev.y as f64, pt.x as f64, pt.y as f64],
-                    c.transform,
-                    g,
-                );
-                prev = pt;
-            }
-            line(
-                red,
-                2.,
-                [
-                    point_list[0].x as f64,
-                    point_list[0].y as f64,
-                    point_list[point_list.len() - 1].x as f64,
-                    point_list[point_list.len() - 1].y as f64,
-                ],
-                c.transform,
-                g,
+fn worker(tx: mpsc::Sender<draw::DrawMessage>) {
+    let engine = || {
+        let p = SimplePolygon::gen_rand_hard(6, 1000, 100).unwrap();
+        //p.partition_monotone();
+
+        let point_list = p.get_point_list();
+        for idx in 0..point_list.len() {
+            let next_idx = (idx + 1) % point_list.len();
+
+            let msg = draw::DrawMessage::Edge(
+                (point_list[idx].clone(), point_list[next_idx].clone()),
+                Colors::RED,
             );
-        });
+            tx.send(msg).unwrap();
+        }
+    };
+    loop {
+        engine();
+        thread::sleep(std::time::Duration::from_millis(1000));
+        tx.send(draw::DrawMessage::Clear(Colors::BLACK)).unwrap();
     }
 }

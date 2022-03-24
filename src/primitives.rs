@@ -6,8 +6,17 @@ pub struct Point {
 }
 
 impl Point {
-    pub fn new(x: isize, y: isize) -> Point {
-        Point { x, y }
+    pub fn new(x: isize, y: isize) -> Self {
+        Self { x, y }
+    }
+    pub fn is_higher_than(&self, other: &Self) -> bool {
+        if self == other {
+            panic!("Cannot use same point");
+        }
+        if self.y > other.y || (self.y == other.y && self.x > other.x) {
+            return true;
+        }
+        false
     }
 
     pub fn orientation(p: &Point, q: &Point, r: &Point) -> PointOrientation {
@@ -18,6 +27,13 @@ impl Point {
             return PointOrientation::Clockwise;
         } else {
             return PointOrientation::Counterclockwise;
+        }
+    }
+
+    pub fn clone(&self) -> Point {
+        Self {
+            x: self.x,
+            y: self.y,
         }
     }
 }
