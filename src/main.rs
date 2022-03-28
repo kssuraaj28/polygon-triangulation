@@ -16,9 +16,10 @@ fn main() {
 
 fn worker(tx: mpsc::Sender<draw::DrawMessage>) {
     let engine = || {
-        let p = SimplePolygon::gen_rand_hard(6, 1000, 100).unwrap();
-        //p.partition_monotone();
-
+        let p = SimplePolygon::gen_rand_hard(30, 1000, 100).unwrap();
+        println!("Polygon generated");
+        tx.send(draw::DrawMessage::Clear(Colors::BLACK, Colors::CYAN, 10))
+            .unwrap();
         let point_list = p.get_point_list();
         for idx in 0..point_list.len() {
             let next_idx = (idx + 1) % point_list.len();
@@ -29,10 +30,20 @@ fn worker(tx: mpsc::Sender<draw::DrawMessage>) {
             );
             tx.send(msg).unwrap();
         }
+        for e in p.partition_monotone() {
+            let msg = draw::DrawMessage::Edge((e.start.clone(), e.end.clone()), Colors::BLUE);
+            tx.send(msg).unwrap();
+        }
+        for p in point_list {
+            let msg = draw::DrawMessage::Point(p.clone(), Colors::BLUE);
+            tx.send(msg).unwrap();
+        }
+        println!("{:?}", p.get_point_list());
     };
-    loop {
-        engine();
-        thread::sleep(std::time::Duration::from_millis(1000));
-        tx.send(draw::DrawMessage::Clear(Colors::BLACK)).unwrap();
-    }
+    //loop {
+    engine();
+    //  thread::sleep(std::time::Duration::from_millis(1000));
+    //  tx.send(draw::DrawMessage::Clear(Colors::BLACK, Colors::CYAN, 10))
+    //      .unwrap();
+    // }
 }

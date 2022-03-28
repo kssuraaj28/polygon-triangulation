@@ -47,8 +47,8 @@ pub enum PointOrientation {
 
 #[derive(Debug)]
 pub struct DirEdge<'a> {
-    start: &'a Point,
-    end: &'a Point,
+    pub start: &'a Point,
+    pub end: &'a Point,
 }
 
 impl<'a> DirEdge<'a> {
