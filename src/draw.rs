@@ -9,6 +9,11 @@ pub struct Colors;
 
 #[allow(unused)]
 impl Colors {
+    pub const PINK: Color = [1., 0.4, 0.7, 1.];
+    pub const ORANGE: Color = [1., 0.4, 0., 1.];
+    pub const YELLOW: Color = [1., 1., 0., 1.];
+    pub const INDIGO: Color = [0.5, 0.5, 1.0, 1.];
+    pub const PURPLE: Color = [1., 0., 1., 1.];
     pub const RED: Color = [1., 0., 0., 1.];
     pub const GREEN: Color = [0., 1., 0., 1.];
     pub const BLUE: Color = [0., 0., 1., 1.];

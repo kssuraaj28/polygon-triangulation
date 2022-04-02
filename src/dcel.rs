@@ -1,7 +1,7 @@
 use crate::polygon::SimplePolygon;
 use crate::primitives::{DirEdge, Point};
 use slotmap::{new_key_type, SlotMap};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 new_key_type! {
     struct DCELPointKey;
@@ -147,7 +147,6 @@ impl DCEL {
         }
     }
 
-    //This function is buggy
     fn split_with_triangle(&mut self, e_int: DCELEdgeKey) {
         #[cfg(debug_assertions)]
         {
@@ -313,6 +312,16 @@ impl DCEL {
         true
     }
 
+    pub fn get_external_face(&self) -> &DCELFace {
+        for (_, f) in &self.faces {
+            if f.outer.is_none() {
+                assert!(f.inner.is_some());
+                return f;
+            }
+        }
+        panic!("External face not found!");
+    }
+
     pub fn get_internal_faces(&self) -> Vec<&DCELFace> {
         let mut r = Vec::new();
         for (_, f) in &self.faces {
@@ -326,15 +335,118 @@ impl DCEL {
         r
     }
 
-    pub fn get_point_list(&self, face: &DCELFace) -> Vec<Point> {
+    pub fn three_color(&self) -> HashMap<Point, usize> {
+        let faces = &self.get_internal_faces();
+        let external_face = self.get_external_face().parent_key;
+        let mut adjacent_faces = HashMap::new();
+        for f in faces {
+            let start_edge = f.outer.unwrap();
+            assert_eq!(
+                start_edge,
+                self.get_next_edge(self.get_next_edge(self.get_next_edge(start_edge)))
+            );
+            let e1 = self.get_twin_edge(start_edge);
+            let e2 = self.get_twin_edge(self.get_next_edge(start_edge));
+            let e3 = self.get_twin_edge(self.get_prev_edge(start_edge));
+
+            let f1 = self.edges[e1].incident_face.unwrap();
+            let f2 = self.edges[e2].incident_face.unwrap();
+            let f3 = self.edges[e3].incident_face.unwrap();
+            let transform = |x| {
+                if x == external_face {
+                    None
+                } else {
+                    Some(x)
+                }
+            };
+            let (f1, f2, f3) = (transform(f1), transform(f2), transform(f3));
+            adjacent_faces.insert(f.parent_key, [f1, f2, f3]);
+        }
+
+        fn recursive_engine(
+            curr_face: DCELFaceKey,
+            parent_face: DCELFaceKey,
+            adjacent_faces: &HashMap<DCELFaceKey, [Option<DCELFaceKey>; 3]>,
+            //adjacent_faces: &HashMap,
+            coloring: &mut HashMap<DCELPointKey, usize>,
+            dcel: &DCEL,
+        ) {
+            #[cfg(debug_assertions)]
+            {
+                println!("---------------------");
+                println!("{:?} {:?} {:?}", curr_face, parent_face, coloring);
+            }
+            let pts = DCEL::get_pointkey_list(dcel, curr_face);
+            let mut forbidden_colors = HashSet::new();
+            let mut new_pts = HashSet::new();
+            for p in pts {
+                if coloring.contains_key(&p) {
+                    forbidden_colors.insert(coloring[&p]);
+                } else {
+                    new_pts.insert(p);
+                }
+            }
+            #[cfg(debug_assertions)]
+            {
+                println!("{:?} {:?}", new_pts, forbidden_colors);
+            }
+            for p in new_pts {
+                if !forbidden_colors.contains(&1) {
+                    coloring.insert(p, 1);
+                    forbidden_colors.insert(1);
+                    continue;
+                };
+                if !forbidden_colors.contains(&2) {
+                    coloring.insert(p, 2);
+                    forbidden_colors.insert(2);
+                    continue;
+                };
+                if !forbidden_colors.contains(&3) {
+                    coloring.insert(p, 3);
+                    forbidden_colors.insert(3);
+                    continue;
+                };
+                panic!("Cannot three color!");
+            }
+
+            for i in adjacent_faces[&curr_face] {
+                if i.is_none() {
+                    continue;
+                }
+                let f = i.unwrap();
+                if parent_face == f {
+                    continue;
+                }
+                recursive_engine(f, curr_face, adjacent_faces, coloring, dcel);
+            }
+        }
+        let mut tempret = HashMap::new();
+        recursive_engine(
+            faces[0].parent_key,
+            faces[0].parent_key,
+            &adjacent_faces,
+            &mut tempret,
+            self,
+        );
+        debug_assert_eq!(self.points.len(), tempret.len());
+
+        let mut ret = HashMap::new();
+        for (k, v) in tempret {
+            let p2d = self.points[k].point2d.clone();
+            ret.insert(p2d, v);
+        }
+        ret
+    }
+
+    fn get_pointkey_list(&self, f: DCELFaceKey) -> Vec<DCELPointKey> {
         let mut r = Vec::new();
+        let face = &self.faces[f];
         let start_edge = face.outer.unwrap();
         {
             let mut curr_edge = start_edge;
             loop {
-                dbg!(curr_edge);
                 let p = self.get_origin_point(curr_edge);
-                r.push(self.points[p].point2d.clone());
+                r.push(p);
                 curr_edge = self.get_next_edge(curr_edge);
                 if curr_edge == start_edge {
                     break;
@@ -343,12 +455,18 @@ impl DCEL {
         }
         r
     }
+    pub fn get_point_list(&self, face: &DCELFace) -> Vec<Point> {
+        let x = self.get_pointkey_list(face.parent_key);
+        x.into_iter()
+            .map(|x| self.points[x].point2d.clone())
+            .collect()
+    }
 
     pub fn add_internal_diagonals(&mut self, diagonals: &Vec<DirEdge>) {
         let mut int_diagonals = Vec::new();
         for e in diagonals {
-            let p1 = self.get_dcelpoint_key(e.start).unwrap();
-            let p2 = self.get_dcelpoint_key(e.end).unwrap();
+            let p1 = self.get_dcelpoint_key(&e.start).unwrap();
+            let p2 = self.get_dcelpoint_key(&e.end).unwrap();
             int_diagonals.push((p1, p2));
         }
         let int_diagonals = int_diagonals;

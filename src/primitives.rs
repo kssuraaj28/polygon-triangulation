@@ -46,14 +46,17 @@ pub enum PointOrientation {
 }
 
 #[derive(Debug)]
-pub struct DirEdge<'a> {
-    pub start: &'a Point,
-    pub end: &'a Point,
+pub struct DirEdge {
+    pub start: Point,
+    pub end: Point,
 }
 
-impl<'a> DirEdge<'a> {
-    pub fn from_points(start: &'a Point, end: &'a Point) -> Self {
-        Self { start, end }
+impl DirEdge {
+    pub fn from_points(start: &Point, end: &Point) -> Self {
+        Self {
+            start: start.clone(),
+            end: end.clone(),
+        }
     }
     pub fn intersects(&self, other: &Self) -> bool {
         fn on_segment(e: &DirEdge, q: &Point) -> bool {
@@ -130,14 +133,8 @@ mod edge_tests {
                 x: points[6],
                 y: points[7],
             };
-            let e1 = DirEdge {
-                start: &p1,
-                end: &q1,
-            };
-            let e2 = DirEdge {
-                start: &p2,
-                end: &q2,
-            };
+            let e1 = DirEdge::from_points(&p1, &q1);
+            let e2 = DirEdge::from_points(&p2, &q2);
 
             println!("Running e1,e2");
             assert_eq!(e1.intersects(&e2), expect);

@@ -17,6 +17,7 @@ struct TrapezoidalizationRecord<'a> {
     top_vertex: (usize, &'a Point),
     bottom_vertex: (usize, &'a Point),
 }
+
 #[derive(Debug)]
 pub struct Trapezoidalization<'a>(Vec<TrapezoidalizationRecord<'a>>);
 
@@ -456,8 +457,6 @@ impl SimplePolygon {
         }
         let point_list = self.get_point_list();
         let mut event_queue: Vec<usize> = (0..point_list.len()).collect();
-        println!("{:?}", event_queue);
-        println!("{:?}", point_list);
         event_queue.sort_by(|a, b| {
             if point_list[*a].is_higher_than(&point_list[*b]) {
                 return std::cmp::Ordering::Greater;
@@ -465,21 +464,6 @@ impl SimplePolygon {
             return std::cmp::Ordering::Less;
         });
         event_queue.reverse();
-        println!("{:?}", event_queue);
-        // let mut right_pts = HashSet::new();
-        // {
-        //     let highest = event_queue[0];
-        //     let lowest = event_queue[event_queue.len() - 1];
-
-        //     let mut cur_idx = highest;
-        //     loop {
-        //         right_pts.insert(cur_idx);
-        //         cur_idx = self.get_next_index(cur_idx);
-        //         if cur_idx == lowest {
-        //             break;
-        //         }
-        //     }
-        // }
 
         let mut stack = Vec::new();
         let mut r = Vec::new();
@@ -499,8 +483,7 @@ impl SimplePolygon {
 
         for idx in 2..event_queue.len() {
             let i = event_queue[idx];
-            assert!(stack.len() > 1);
-            println!("{:?} {:?}", i, stack);
+            debug_assert!(stack.len() > 1);
             if is_adjacent(i, stack[0]) {
                 while stack.len() > 1 {
                     if !is_adjacent(i, stack[1]) {
@@ -539,10 +522,7 @@ impl SimplePolygon {
             println!("Finished monotone triangulation");
         }
         r.iter()
-            .map(|(s, e)| DirEdge {
-                start: &point_list[*s],
-                end: &point_list[*e],
-            })
+            .map(|(s, e)| DirEdge::from_points(&point_list[*s], &point_list[*e]))
             .collect()
     }
 }
