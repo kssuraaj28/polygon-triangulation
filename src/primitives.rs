@@ -1,4 +1,4 @@
-#[derive(Debug, PartialEq)]
+#[derive(Hash, Debug, PartialEq, Eq)]
 pub struct Point {
     //TODO: Have generics
     pub x: isize,

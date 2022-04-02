@@ -2,7 +2,7 @@ use crate::primitives::Point;
 use piston_window::*;
 use std::sync::mpsc;
 
-type Color = [f32; 4];
+pub type Color = [f32; 4];
 
 #[non_exhaustive]
 pub struct Colors;
@@ -34,8 +34,7 @@ pub fn drawer(rx: mpsc::Receiver<DrawMessage>) {
 
     while let Some(e) = window.next() {
         window.draw_2d(&e, |c, g, _| {
-            let t = rx.try_recv();
-            if let Ok(m) = t {
+            while let Ok(m) = rx.try_recv() {
                 match m {
                     DrawMessage::Point(pt, clr) => {
                         ellipse(

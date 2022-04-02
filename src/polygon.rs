@@ -1,5 +1,5 @@
 use rand::Rng;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use crate::primitives::{DirEdge, Point, PointOrientation};
 
@@ -10,6 +10,7 @@ struct UnorderedEdge<'a> {
 }
 
 #[derive(Debug)]
+#[allow(unused)]
 struct TrapezoidalizationRecord<'a> {
     left_edge: (usize, UnorderedEdge<'a>),
     right_edge: (usize, UnorderedEdge<'a>),
@@ -18,6 +19,21 @@ struct TrapezoidalizationRecord<'a> {
 }
 #[derive(Debug)]
 pub struct Trapezoidalization<'a>(Vec<TrapezoidalizationRecord<'a>>);
+
+//impl Trapezoidalization<'_> {
+//    pub fn get_added_segments(&self) -> Vec<DirEdge> {
+//        fn interpolate(x1: f64, y1: f64, x2: f64, y2: f64, ynew: f64) -> f64 {
+//            x1 + ((ynew - y1) * (x2 - x1)) / (y2 - y1)
+//        }
+//        let r = Vec::new();
+//
+//        for rcd in &self.0 {
+//            //Top edge
+//            let v = rcd.top_vertex;
+//        }
+//        r
+//    }
+//}
 
 #[derive(Debug)]
 pub struct SimplePolygon {
@@ -48,28 +64,28 @@ impl SimplePolygon {
         }
         curr_idx - 1
     }
+
+    fn is_reflex(&self, point_index: usize) -> bool {
+        let point_list = self.get_point_list();
+        let prev = &point_list[self.get_prev_index(point_index)];
+        let curr = &point_list[point_index];
+        let next = &point_list[self.get_next_index(point_index)];
+
+        //SimplePolygon has Counterclockwise orientation be default
+        if Point::orientation(prev, curr, next) == PointOrientation::Clockwise {
+            return true;
+        }
+        false
+    }
+
     fn get_point_type(&self, curr_idx: usize) -> PointType {
-        let point_list = &self.point_list;
-
-        let is_reflex = |point_index| {
-            let prev = &point_list[self.get_prev_index(point_index)];
-            let curr = &point_list[point_index];
-            let next = &point_list[self.get_next_index(point_index)];
-
-            //SimplePolygon has Counterclockwise orientation be default
-            if Point::orientation(prev, curr, next) == PointOrientation::Clockwise {
-                return true;
-            }
-            false
-        };
-
         let curr = &self.point_list[curr_idx];
         let next_idx = self.get_next_index(curr_idx);
         let next = &self.point_list[next_idx];
         let prev_idx = self.get_prev_index(curr_idx);
         let prev = &self.point_list[prev_idx];
 
-        let rflx = is_reflex(curr_idx);
+        let rflx = self.is_reflex(curr_idx);
 
         if curr.is_higher_than(next) && curr.is_higher_than(prev) {
             if rflx {
@@ -308,7 +324,8 @@ impl SimplePolygon {
                 }
             }
         }
-        println!("{:?}", trapezoids_temp);
+        //println!("{:?}", trapezoids_temp);
+        //TODO: Is this run in release build
         #[cfg(debug_assertions)]
         for ((_, _), t) in &trapezoids_temp {
             assert_ne!(t.higher_idx, None);
@@ -339,6 +356,13 @@ impl SimplePolygon {
         }
         ret
     }
+    pub fn from_point_list(pl: Vec<Point>) -> SimplePolygon {
+        let mut uniq = HashSet::new();
+        if !pl.iter().all(|x| uniq.insert(x)) {
+            panic!("Non unique elements");
+        };
+        return SimplePolygon { point_list: pl };
+    }
 
     pub fn gen_rand_hard(vertex_count: usize, max_coord: usize, retry_cnt: usize) -> Option<Self> {
         if vertex_count < 3 {
@@ -364,8 +388,14 @@ impl SimplePolygon {
             };
             point_list.push(p1);
             point_list.push(p2);
+
             for idx in 2..vertex_count {
+                let mut inner_retry_cnt = 0;
                 let p: Point = 'outer: loop {
+                    inner_retry_cnt += 1;
+                    if inner_retry_cnt > retry_cnt {
+                        return None;
+                    };
                     let p = gen_rand_point();
                     if p == point_list[idx - 2] {
                         continue 'outer;
@@ -417,6 +447,103 @@ impl SimplePolygon {
             }
         }
         None
+    }
+    pub fn triangulate_monotone(&self) -> Vec<DirEdge> {
+        #[cfg(debug_assertions)]
+        {
+            println!("Triangulating monotone");
+            println!("{:?}", self.point_list);
+        }
+        let point_list = self.get_point_list();
+        let mut event_queue: Vec<usize> = (0..point_list.len()).collect();
+        println!("{:?}", event_queue);
+        println!("{:?}", point_list);
+        event_queue.sort_by(|a, b| {
+            if point_list[*a].is_higher_than(&point_list[*b]) {
+                return std::cmp::Ordering::Greater;
+            }
+            return std::cmp::Ordering::Less;
+        });
+        event_queue.reverse();
+        println!("{:?}", event_queue);
+        // let mut right_pts = HashSet::new();
+        // {
+        //     let highest = event_queue[0];
+        //     let lowest = event_queue[event_queue.len() - 1];
+
+        //     let mut cur_idx = highest;
+        //     loop {
+        //         right_pts.insert(cur_idx);
+        //         cur_idx = self.get_next_index(cur_idx);
+        //         if cur_idx == lowest {
+        //             break;
+        //         }
+        //     }
+        // }
+
+        let mut stack = Vec::new();
+        let mut r = Vec::new();
+
+        stack.push(event_queue[0]);
+        stack.push(event_queue[1]);
+
+        let is_adjacent = |i1, i2| {
+            if self.get_next_index(i1) == i2 {
+                true
+            } else if self.get_next_index(i2) == i1 {
+                true
+            } else {
+                false
+            }
+        };
+
+        for idx in 2..event_queue.len() {
+            let i = event_queue[idx];
+            assert!(stack.len() > 1);
+            println!("{:?} {:?}", i, stack);
+            if is_adjacent(i, stack[0]) {
+                while stack.len() > 1 {
+                    if !is_adjacent(i, stack[1]) {
+                        //End corner case
+                        r.push((i, stack[1]));
+                    };
+                    stack.remove(0);
+                }
+                stack.push(i);
+            } else {
+                //let is_right_chain = { right_pts.contains(stack.last().unwrap()) };
+                let is_right_chain = { self.get_next_index(i) == *stack.last().unwrap() };
+
+                while stack.len() > 1 {
+                    let pl = &point_list[i];
+                    let pm = &point_list[stack[stack.len() - 1]];
+                    let ph = &point_list[stack[stack.len() - 2]];
+                    let o = if is_right_chain {
+                        Point::orientation(pl, pm, ph)
+                    } else {
+                        Point::orientation(ph, pm, pl)
+                    };
+                    if o != PointOrientation::Counterclockwise {
+                        break;
+                    }
+                    r.push((i, stack[stack.len() - 2]));
+                    stack.pop().unwrap();
+                }
+                stack.push(i);
+            }
+        }
+
+        #[cfg(debug_assertions)]
+        {
+            assert_eq!(stack.len(), 2);
+            println!("Finished monotone triangulation");
+        }
+        r.iter()
+            .map(|(s, e)| DirEdge {
+                start: &point_list[*s],
+                end: &point_list[*e],
+            })
+            .collect()
     }
 }
 #[cfg(test)]
