@@ -1,3 +1,6 @@
+// GroupID-6 (18117106_18114083) - Suraaj K S & Yashaswi Jaiswal
+// Date: April 14, 2022
+// dcel.rs - Implementation of DCEL
 use crate::polygon::SimplePolygon;
 use crate::primitives::{DirEdge, Point};
 use slotmap::{new_key_type, SlotMap};

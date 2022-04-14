@@ -1,3 +1,6 @@
+// GroupID-6 (18117106_18114083) - Suraaj K S & Yashaswi Jaiswal
+// Date: April 14, 2022
+// primitives.rs - Basic code for points and edges
 #[derive(Hash, Debug, PartialEq, Eq)]
 pub struct Point {
     //TODO: Have generics

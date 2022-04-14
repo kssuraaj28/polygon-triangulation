@@ -1,3 +1,6 @@
+// GroupID-6 (18117106_18114083) - Suraaj K S & Yashaswi Jaiswal
+// Date: April 14, 2022
+// polygon.rs - Code for generating and partitioning polygons
 use rand::Rng;
 use std::collections::{HashMap, HashSet};
 

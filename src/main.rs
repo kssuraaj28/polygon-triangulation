@@ -1,3 +1,6 @@
+// GroupID-6 (18117106_18114083) - Suraaj K S & Yashaswi Jaiswal
+// Date: April 14, 2022
+// main.rs - The main runner code
 use dcel::DCEL;
 use draw::{Color, Colors};
 use polygon::SimplePolygon;
@@ -151,7 +154,7 @@ fn worker(tx: mpsc::Sender<draw::DrawMessage>, arg: usize) {
         }
     };
     loop {
-        engine(2000);
+        engine(3000);
         thread::sleep(std::time::Duration::from_millis(2000));
         tx.send(draw::DrawMessage::Clear(Colors::BLACK, Colors::CYAN, 10))
             .unwrap();

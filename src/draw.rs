@@ -1,3 +1,6 @@
+// GroupID-6 (18117106_18114083) - Suraaj K S & Yashaswi Jaiswal
+// Date: April 14, 2022
+// draw.rs - Functions controlling the GUI
 use crate::primitives::Point;
 use piston_window::*;
 use std::sync::mpsc;
