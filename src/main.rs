@@ -3,6 +3,7 @@ use draw::{Color, Colors};
 use polygon::SimplePolygon;
 use primitives::DirEdge;
 use std::collections::HashMap;
+use std::env;
 use std::sync::mpsc;
 use std::thread;
 
@@ -12,8 +13,10 @@ mod polygon;
 mod primitives;
 
 fn main() {
+    let args: Vec<String> = env::args().collect();
+    assert_eq!(args.len(), 2);
     let (tx, rx) = mpsc::channel();
-    thread::spawn(move || worker(tx));
+    thread::spawn(move || worker(tx, args[1].parse().unwrap()));
     draw::drawer(rx);
 }
 
@@ -54,9 +57,9 @@ fn draw_edge(tx: &mpsc::Sender<draw::DrawMessage>, e: &DirEdge, c: Color) {
     tx.send(msg).unwrap();
 }
 
-fn worker(tx: mpsc::Sender<draw::DrawMessage>) {
+fn worker(tx: mpsc::Sender<draw::DrawMessage>, arg: usize) {
     let engine = |sleep_time| {
-        let original_p = SimplePolygon::gen_rand_hard(12, 1000, 100).unwrap();
+        let original_p = SimplePolygon::gen_rand_hard(arg, 1000, 100).unwrap();
 
         clear(&tx);
         draw_polygon(&tx, &original_p, Some(Colors::RED), Some(Colors::GREEN));
@@ -82,9 +85,35 @@ fn worker(tx: mpsc::Sender<draw::DrawMessage>) {
             }
             trg_diagonals.append(&mut edges);
         }
-        dcel.add_internal_diagonals(&trg_diagonals);
-        draw_polygon(&tx, &original_p, None, Some(Colors::GREEN));
         thread::sleep(std::time::Duration::from_millis(sleep_time));
+
+        clear(&tx);
+        dcel.add_internal_diagonals(&trg_diagonals);
+        for f in dcel.get_internal_faces() {
+            draw_polygon(
+                &tx,
+                &SimplePolygon::from_point_list(dcel.get_point_list(f)),
+                Some(Colors::WHITE),
+                Some(Colors::GREEN),
+            );
+        }
+
+        clear(&tx);
+        draw_polygon(&tx, &original_p, None, Some(Colors::GREEN));
+        for e in dcel.dual_graph() {
+            draw_edge(&tx, &e, Colors::BLUE);
+        }
+        thread::sleep(std::time::Duration::from_millis(sleep_time));
+
+        clear(&tx);
+        for f in dcel.get_internal_faces() {
+            draw_polygon(
+                &tx,
+                &SimplePolygon::from_point_list(dcel.get_point_list(f)),
+                Some(Colors::YELLOW),
+                Some(Colors::GREEN),
+            );
+        }
 
         let color_map = dcel.three_color();
         let mut color_freqs: HashMap<usize, usize> = HashMap::new();

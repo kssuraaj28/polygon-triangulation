@@ -149,7 +149,7 @@ impl SimplePolygon {
             }
         }
 
-        let mut sweep_line_status: Vec<(usize, usize)> = Vec::new(); //Retard stupid roy
+        let mut sweep_line_status: Vec<(usize, usize)> = Vec::new();
 
         let mut event_queue: Vec<usize> = (0..point_list.len()).collect();
         event_queue.sort_by(|a, b| {

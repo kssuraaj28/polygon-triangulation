@@ -335,7 +335,7 @@ impl DCEL {
         r
     }
 
-    pub fn three_color(&self) -> HashMap<Point, usize> {
+    fn construct_adjacent_face_map(&self) -> HashMap<DCELFaceKey, [Option<DCELFaceKey>; 3]> {
         let faces = &self.get_internal_faces();
         let external_face = self.get_external_face().parent_key;
         let mut adjacent_faces = HashMap::new();
@@ -362,7 +362,50 @@ impl DCEL {
             let (f1, f2, f3) = (transform(f1), transform(f2), transform(f3));
             adjacent_faces.insert(f.parent_key, [f1, f2, f3]);
         }
+        adjacent_faces
+    }
 
+    pub fn dual_graph(&self) -> Vec<DirEdge> {
+        let adjacent_faces = self.construct_adjacent_face_map();
+
+        let get_centroid = |f| {
+            let p = self.get_pointkey_list(f);
+            assert_eq!(p.len(), 3);
+            let mut x_new = 0;
+            let mut y_new = 0;
+            for i in 0..3 {
+                x_new += self.points[p[i]].point2d.x;
+                y_new += self.points[p[i]].point2d.y;
+            }
+            x_new /= 3;
+            y_new /= 3;
+            Point::new(x_new, y_new)
+        };
+
+        let mut temp_ret = HashSet::new();
+
+        for (fk, _) in &adjacent_faces {
+            let af = &adjacent_faces[&fk];
+            for f in af {
+                if f.is_none() {
+                    continue;
+                }
+                let f = f.unwrap();
+                if !temp_ret.contains(&(f, *fk)) {
+                    temp_ret.insert((*fk, f));
+                }
+            }
+        }
+        let mut ret = Vec::new();
+        for (f1, f2) in temp_ret {
+            ret.push(DirEdge::from_points(&get_centroid(f1), &get_centroid(f2)));
+        }
+        ret
+    }
+
+    pub fn three_color(&self) -> HashMap<Point, usize> {
+        let faces = &self.get_internal_faces();
+        let adjacent_faces = self.construct_adjacent_face_map();
         fn recursive_engine(
             curr_face: DCELFaceKey,
             parent_face: DCELFaceKey,

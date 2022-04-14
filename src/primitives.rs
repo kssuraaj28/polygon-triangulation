@@ -45,7 +45,7 @@ pub enum PointOrientation {
     Collinear,
 }
 
-#[derive(Debug)]
+#[derive(Hash, Debug, PartialEq, Eq)]
 pub struct DirEdge {
     pub start: Point,
     pub end: Point,
